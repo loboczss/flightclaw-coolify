@@ -10,6 +10,25 @@ RUN git clone --depth 1 https://github.com/jackculpan/flightclaw.git .
 
 RUN pip install --no-cache-dir "flights==0.9.0" "mcp[cli]" fastmcp
 
+# Corrige instabilidade de sessão HTTP entre FastMCP e clientes externos como n8n
+RUN python3 - <<'PY'
+from pathlib import Path
+
+p = Path("/app/server.py")
+s = p.read_text()
+
+old = 'mcp = _MCP("flightclaw")'
+new = '''try:
+    mcp = _MCP("flightclaw", stateless_http=True)
+except TypeError:
+    mcp = _MCP("flightclaw")'''
+
+if old not in s:
+    raise SystemExit("Não encontrei a linha esperada: mcp = _MCP(\"flightclaw\")")
+
+p.write_text(s.replace(old, new))
+PY
+
 RUN mkdir -p /app/data
 
 ENV HOST=0.0.0.0
